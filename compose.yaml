@@ -1,7 +1,30 @@
 services:
   smarttasks:
-    # RNF-02: um único serviço, sem base de dados ou serviços externos.
+    # Aplicação existente: continua a guardar tarefas em memória.
     build: .
     ports:
-      # Apenas localhost: porta 8080 do host para 8000 do container.
+      # A interface continua acessível apenas no computador local.
       - "127.0.0.1:8080:8000"
+
+  db:
+    # PostgreSQL 17: serviço de infraestrutura, ainda não usado pela aplicação.
+    image: postgres:17
+    environment:
+      POSTGRES_DB: smarttasks
+      POSTGRES_USER: smarttasks
+      # A password é lida do .env local; nunca guardar aqui o valor real.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD no ficheiro .env}
+    volumes:
+      # Os dados da BD sobrevivem à recriação do container.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Verifica se o servidor aceita ligações à base smarttasks.
+      test: ["CMD-SHELL", "pg_isready -U smarttasks -d smarttasks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Sem 'ports': a porta 5432 não é publicada no host.
+    # Ambos os serviços partilham automaticamente a rede padrão do Compose.
+
+volumes:
+  postgres_data:

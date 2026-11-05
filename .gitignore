@@ -1,0 +1,10 @@
+# Não publicar passwords e configurações locais.
+.env
+.env.*
+!.env.example
+
+# Ficheiros gerados localmente.
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

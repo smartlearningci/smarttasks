@@ -1,30 +1,43 @@
 """Camada HTTP SmartTasks (RF-01 a RF-06).
 
-Recebe pedidos e delega as operações na camada de armazenamento.
-Separar responsabilidades facilita a compreensão e evolução (RNF-04).
+As rotas e os formatos de resposta permanecem iguais aos do MVP V1.
+A persistência fica isolada em app/store.py e app/db.py (RNF-04).
 """
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
+from .db import initialize_schema
 from .models import Task, TaskCreate
 from .store import TaskStore
 
-app = FastAPI(title="SmartTasks", version="1.0.0")
-# Os dados vivem apenas durante a execução deste processo.
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """RNF-05: inicializar a tabela antes de aceitar pedidos HTTP.
+
+    CREATE TABLE IF NOT EXISTS não apaga tarefas existentes.
+    Se a BD não estiver acessível, o arranque falha visivelmente.
+    """
+    initialize_schema()
+    yield
+
+
+app = FastAPI(title="SmartTasks", version="1.0.0", lifespan=lifespan)
 store = TaskStore()
 
 
 @app.get("/", include_in_schema=False)
 def index() -> FileResponse:
-    """US-01/US-02; RNF-01/RNF-03: servir a interface HTML."""
+    """US-01/US-02; RNF-01/RNF-03: servir a interface HTML existente."""
     return FileResponse(Path(__file__).parent / "static" / "index.html")
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    """US-06; RF-06: indicar que o serviço responde."""
+    """US-06; RF-06: manter a resposta HTTP 200 do MVP."""
     return {"status": "ok"}
 
 

@@ -1,20 +1,48 @@
-"""Testes da API com US, requisitos, objetivo e resultado esperado.
+"""Testes da API — US, requisitos, objetivo e resultado esperado.
 
-O TestClient testa FastAPI sem servidor externo. O fixture isola os dados.
-Docker e interação no browser requerem verificação manual documentada.
+Estes testes usam uma implementação em memória APENAS COMO DUPLO DE TESTE:
+validam o contrato HTTP sem alterar a base de dados real. A persistência
+PostgreSQL é verificada separadamente em tests/test_postgres.py.
 """
 import pytest
 from fastapi.testclient import TestClient
 
 from app import main
 from app.main import app
-from app.store import TaskStore
+from app.models import Task
+
+
+class FakeTaskStore:
+    """Duplo mínimo com a mesma interface de TaskStore, só para testes HTTP."""
+
+    def __init__(self):
+        self.tasks = {}
+        self.next_id = 1
+
+    def list_tasks(self):
+        return list(self.tasks.values())
+
+    def create(self, data):
+        task = Task(
+            id=self.next_id, title=data.title,
+            description=data.description, status="Aberta"
+        )
+        self.tasks[task.id] = task
+        self.next_id += 1
+        return task
+
+    def set_status(self, task_id, status):
+        task = self.tasks.get(task_id)
+        if task is not None:
+            task.status = status
+        return task
 
 
 @pytest.fixture
 def client(monkeypatch):
-    """RNF-05: cada teste começa com armazenamento vazio."""
-    monkeypatch.setattr(main, "store", TaskStore())
+    """Isola cada teste e dispensa PostgreSQL nos testes de contrato HTTP."""
+    monkeypatch.setattr(main, "initialize_schema", lambda: None)
+    monkeypatch.setattr(main, "store", FakeTaskStore())
     with TestClient(app) as test_client:
         yield test_client
 
@@ -100,16 +128,3 @@ def test_html_interface(client):
     assert response.status_code == 200
     assert "SmartTasks" in response.text
     assert "create-form" in response.text
-
-
-def test_memory_isolated_between_clients(monkeypatch):
-    """US-06 | RNF-05: substituir armazenamento simula processo novo vazio."""
-    monkeypatch.setattr(main, "store", TaskStore())
-    with TestClient(app) as first:
-        first.post("/api/tasks", json={"title": "Temporária"})
-        assert len(first.get("/api/tasks").json()) == 1
-
-    # Simulação, não substitui o teste manual de reinício Docker.
-    monkeypatch.setattr(main, "store", TaskStore())
-    with TestClient(app) as second:
-        assert second.get("/api/tasks").json() == []

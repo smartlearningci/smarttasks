@@ -1,62 +1,35 @@
-# SmartTasks — Arquitetura inicial e evolução
+# SmartTasks — Arquitetura V2 com PostgreSQL
 
-## Arquitetura do MVP
-- **Linguagem e framework:** Python e FastAPI.
-- **Interface:** HTML simples servido pela aplicação.
-- **API:** HTTP para operações sobre tarefas e `GET /health`.
-- **Estado:** armazenamento em memória do processo da aplicação.
-- **Execução:** um container Docker, construído por `Dockerfile` e iniciado por `compose.yaml`.
-- **Portas:** `127.0.0.1:8080:8000` (host 8080 → container 8000), para acesso preferencialmente limitado ao computador local.
+## Continuidade funcional
+Mantêm-se interface HTML, FastAPI, os endpoints HTTP e os modelos da V1. A V2 substitui apenas a camada de armazenamento.
 
-## Diagrama textual
+## Componentes
+- `app/main.py`: API e inicialização do esquema durante o arranque.
+- `app/models.py`: modelos e validações da API, inalterados.
+- `app/store.py`: operações SQL parametrizadas com a mesma interface da V1.
+- `app/db.py`: ligação por variáveis PGHOST, PGPORT, PGDATABASE, PGUSER e PGPASSWORD; criação idempotente da tabela `tasks`.
+- `compose.yaml`: serviço `smarttasks` depende do healthcheck do serviço `db` (PostgreSQL 17).
+- `postgres_data`: volume nomeado que conserva dados após reinício/recriação.
+- `app/static/index.html`: interface existente, sem alterações.
+
+## Fluxo de dados
 ```text
-Browser do formando
-http://localhost:8080
-         |
-         | HTTP (127.0.0.1:8080 -> 8000)
-         v
-+-----------------------------------+
-| Docker: serviço SmartTasks         |
-|                                   |
-| FastAPI                            |
-|  |-- Interface HTML               |
-|  |-- API HTTP                     |
-|  |-- GET /health                  |
-|  |                                |
-|  +-- Lógica de tarefas            |
-|        |                          |
-|        v                          |
-|    Dados em memória               |
-+-----------------------------------+
-
-Dockerfile + compose.yaml
+Browser localhost:8080
+  → smarttasks: FastAPI (porta 8000)
+    → TaskStore (SQL parametrizado)
+      → db:5432 (rede interna Compose)
+        → volume postgres_data
 ```
 
-## Organização prevista do repositório
-```text
-README.md
-docs/
-  01_contexto_e_personas.md
-  02_requisitos_e_mvp.md
-  03_arquitetura_e_evolucao.md
-app/
-tests/
-requirements.txt
-Dockerfile
-compose.yaml
-.dockerignore
-```
-A documentação é a primeira entrega. Os ficheiros de aplicação, testes e Docker serão criados apenas após aprovação específica do plano de implementação.
+A porta 5432 não é publicada no computador. As credenciais são fornecidas pelo ficheiro local `.env`, excluído do Git. Não existem credenciais reais no repositório.
 
-## Possibilidades de evolução (não incluídas no MVP)
-| Tema | Possível evolução | Conceito pedagógico |
-| --- | --- | --- |
-| PostgreSQL | Substituir dados em memória por base de dados | Persistência e separação de responsabilidades |
-| Volumes | Guardar os dados da base de dados fora do ciclo de vida do container | Persistência de dados em Docker |
-| Redes internas | Comunicar entre containers de aplicação e base de dados sem expor a base ao host | Redes e isolamento |
-| Filas | Introduzir processamento assíncrono em tarefas técnicas futuras | Desacoplamento e processamento assíncrono |
-| CI/CD | Automatizar testes e construção de imagens | Integração e entrega contínuas |
-| Observabilidade | Adicionar logs estruturados, métricas e monitorização | Diagnóstico e operação |
+## Inicialização do esquema
+No arranque da API, `initialize_schema()` executa `CREATE TABLE IF NOT EXISTS tasks`. A tabela contém `id`, `title`, `description` e `status`. Não executa `DROP`, `TRUNCATE` ou apagamentos. Para alterações estruturais futuras, será necessária migração explícita.
 
-## Princípios de implementação futura
-Manter módulos claros, testes associados aos requisitos e ficheiros de configuração explicados para fins didáticos. Não guardar credenciais no código e não depender de serviços pagos. Qualquer evolução exige nova decisão e aprovação.
+## Testes e limites
+- `tests/test_api.py`: contrato HTTP com armazenamento simulado, sem tocar em dados reais.
+- `tests/test_postgres.py`: T-14 a T-20 numa base separada `*_test` com esquemas temporários isolados.
+- A validação de reinício real, acesso pelo browser e Docker deve ser executada no computador dos formandos.
+
+## Evoluções futuras fora do âmbito
+Filas, autenticação, notificações, CI/CD, observabilidade avançada e serviços pagos. Não foram acrescentados nesta V2.

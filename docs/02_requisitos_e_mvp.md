@@ -10,6 +10,20 @@
 | RF-05 | Disponibilizar API HTTP | A API permite listar, criar, concluir e reabrir tarefas, com respostas HTTP apropriadas. |
 | RF-06 | Verificar saúde | `GET /health` devolve HTTP 200 enquanto a aplicação estiver operacional. |
 
+## User Stories do MVP
+As personas descrevem necessidades, não permissões: não há autenticação nesta versão.
+
+| ID | Persona | User Story | Critério de aceitação | Requisitos |
+| --- | --- | --- | --- | --- |
+| US-01 | Ana | Como colaboradora, quero consultar a lista de tarefas para acompanhar o trabalho. | Lista com título e estado; vazia sem erro. | RF-01 |
+| US-02 | Ana | Como colaboradora, quero criar tarefas com título e descrição opcional para registar trabalho. | Título obrigatório, rejeição de branco; tarefa criada Aberta. | RF-02 |
+| US-03 | Ana | Como colaboradora, quero concluir uma tarefa para assinalar o seu fim. | Estado muda para Concluída na lista. | RF-03 |
+| US-04 | Ana | Como colaboradora, quero reabrir uma tarefa concluída para voltar a acompanhá-la. | Estado muda para Aberta na lista. | RF-04 |
+| US-05 | Miguel | Como responsável de equipa, quero consultar tarefas e estados para acompanhar a equipa. | Consulta usa a mesma listagem de US-01, sem novas permissões. | RF-01 |
+| US-06 | Sofia | Como responsável de TI, quero verificar se a aplicação responde para apoiar a manutenção. | GET /health responde HTTP 200. | RF-06 |
+
+RF-05 (API HTTP) suporta US-01 a US-06. Os RNF são condições transversais de execução e qualidade, não novas funcionalidades.
+
 ## Requisitos não funcionais
 | ID | Requisito | Critério de aceitação |
 | --- | --- | --- |

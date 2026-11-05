@@ -1,0 +1,7 @@
+services:
+  smarttasks:
+    # RNF-02: um único serviço, sem base de dados ou serviços externos.
+    build: .
+    ports:
+      # Apenas localhost: porta 8080 do host para 8000 do container.
+      - "127.0.0.1:8080:8000"

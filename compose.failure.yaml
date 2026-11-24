@@ -1,0 +1,5 @@
+# Ativa uma falha didática apenas no worker, sem alterar os recursos Azure.
+services:
+  outbox-worker:
+    environment:
+      OUTBOX_SIMULATE_AZURE_FAILURE: "1"

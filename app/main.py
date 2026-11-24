@@ -1,4 +1,4 @@
-# API HTTP SmartTasks com PostgreSQL e publicação de eventos.
+"""API SmartTasks integrada com o padrão Transactional Outbox."""
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -7,20 +7,22 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from .db import initialize_schema
-from .events import publish_task_created
 from .models import Task, TaskCreate
+from .outbox import create_task_with_outbox, initialize_outbox_schema
 from .store import TaskStore
+
+LOGGER = logging.getLogger("uvicorn.error")
+store = TaskStore()
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    initialize_schema()
+    initialize_schema()          # Tabela tasks existente: mantém os dados
+    initialize_outbox_schema()   # Acrescenta a tabela permanente outbox_events
     yield
 
 
-app = FastAPI(title="SmartTasks", version="1.0.0", lifespan=lifespan)
-store = TaskStore()
-LOGGER = logging.getLogger("uvicorn.error")
+app = FastAPI(title="SmartTasks", version="1.1.0", lifespan=lifespan)
 
 
 @app.get("/", include_in_schema=False)
@@ -40,14 +42,8 @@ def list_tasks() -> list[Task]:
 
 @app.post("/api/tasks", response_model=Task, status_code=201)
 def create_task(data: TaskCreate) -> Task:
-    task = store.create(data)
-    LOGGER.info("[smarttasks] Tarefa %s guardada na PostgreSQL", task.id)
-    published = publish_task_created(task)
-    LOGGER.info(
-        "[smarttasks] Publicação do evento da tarefa %s: %s",
-        task.id,
-        "OK" if published else "FALHOU",
-    )
+    task = create_task_with_outbox(data)
+    LOGGER.info("[outbox] Tarefa %s + evento PENDING gravados no PostgreSQL", task.id)
     return task
 
 

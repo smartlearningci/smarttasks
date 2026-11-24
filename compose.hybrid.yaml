@@ -1,0 +1,18 @@
+# Extensão integrada no projeto SmartTasks para o ambiente híbrido.
+# Os eventos são gravados pela API e publicados por este serviço Docker.
+services:
+  outbox-worker:
+    build: .
+    command: ["python", "-m", "app.outbox_worker"]
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGDATABASE: smarttasks
+      PGUSER: smarttasks
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Definir no ficheiro .env}
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING:?Definir no ficheiro .env}
+      OUTBOX_SIMULATE_AZURE_FAILURE: "0"
+    depends_on:
+      db:
+        condition: service_healthy
